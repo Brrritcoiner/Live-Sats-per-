@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Satoshis per £1</title>
+  <style>
+    body { font-family: Arial, sans-serif; text-align: center; padding: 40px; background: #f7f7f7; }
+    h1 { font-size: 2.5rem; margin-bottom: 10px; }
+    #sats { font-size: 3rem; color: #2c3e50; }
+    small { color: #888; }
+  </style>
+</head>
+<body>
+  <h1>Satoshis per £1</h1>
+  <div id="sats">Loading...</div>
+  <small id="updated"></small>
+
+  <script>
+    async function fetchSatsPerPound() {
+      try {
+        const response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=gbp');
+        const data = await response.json();
+        const btcPriceGBP = data.bitcoin.gbp;
+        const sats = Math.floor(100000000 / btcPriceGBP);
+        document.getElementById('sats').textContent = sats.toLocaleString() + " sats";
+        document.getElementById('updated').textContent = "Updated: " + new Date().toLocaleTimeString();
+      } catch (err) {
+        document.getElementById('sats').textContent = "Error fetching data.";
+      }
+    }
+
+    fetchSatsPerPound();
+    setInterval(fetchSatsPerPound, 60000); // Refresh every 60 seconds
+  </script>
+</body>
+</html>
