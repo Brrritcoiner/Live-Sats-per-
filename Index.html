@@ -2,35 +2,204 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Satoshis per £1</title>
+  <title>Sats to the £</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
-    body { font-family: Arial, sans-serif; text-align: center; padding: 40px; background: #f7f7f7; }
-    h1 { font-size: 2.5rem; margin-bottom: 10px; }
-    #sats { font-size: 3rem; color: #2c3e50; }
-    small { color: #888; }
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #f7f7f7;
+      color: #2c3e50;
+    }
+
+    header {
+      background-color: #F7931A;
+      color: white;
+      padding: 15px;
+      font-size: 1.2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .main-display {
+      text-align: center;
+      padding: 40px 20px 10px;
+    }
+
+    .main-display h1 {
+      font-size: 5rem;
+      margin: 0;
+      color: #F7931A;
+    }
+
+    .main-display p {
+      font-size: 1.4rem;
+      color: #555;
+      margin-top: 5px;
+    }
+
+    .chart-section {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-around;
+      padding: 20px;
+      gap: 20px;
+    }
+
+    .chart-container {
+      background: white;
+      padding: 15px;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.05);
+      flex: 1 1 400px;
+    }
+
+    .news-section {
+      margin: 20px;
+    }
+
+    iframe {
+      border: none;
+      width: 100%;
+      height: 600px;
+    }
+
+    @media (max-width: 768px) {
+      .main-display h1 {
+        font-size: 3rem;
+      }
+    }
   </style>
 </head>
 <body>
-  <h1>Satoshis per £1</h1>
-  <div id="sats">Loading...</div>
-  <small id="updated"></small>
 
-  <script>
-    async function fetchSatsPerPound() {
-      try {
-        const response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=gbp');
-        const data = await response.json();
-        const btcPriceGBP = data.bitcoin.gbp;
-        const sats = Math.floor(100000000 / btcPriceGBP);
-        document.getElementById('sats').textContent = sats.toLocaleString() + " sats";
-        document.getElementById('updated').textContent = "Updated: " + new Date().toLocaleTimeString();
-      } catch (err) {
-        document.getElementById('sats').textContent = "Error fetching data.";
-      }
+<header>
+  <div id="btcPrice">BTC/GBP: £...</div>
+  <div id="satsValue">Sats = ...</div>
+</header>
+
+<div class="main-display">
+  <h1 id="mainSats">...</h1>
+  <p>Sats to the £</p>
+</div>
+
+<div class="chart-section">
+  <div class="chart-container">
+    <h3>30-Day Sats per £</h3>
+    <canvas id="satsChart"></canvas>
+  </div>
+  <div class="chart-container">
+    <h3>All-Time BTC Price (Log Scale)</h3>
+    <canvas id="btcLogChart"></canvas>
+  </div>
+</div>
+
+<div class="news-section">
+  <h3 style="text-align:center;">Bitcoin News Feed</h3>
+  <iframe src="https://cryptopanic.com/widgets/news/?bg_color=ffffff&font_family=sans&font_size=14&header_bg_color=f7931a&header_text_color=ffffff&link_color=000000&posts_limit=10"></iframe>
+</div>
+
+<script>
+  async function updateLiveStats() {
+    try {
+      const res = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=gbp');
+      const data = await res.json();
+      const price = data.bitcoin.gbp;
+      const sats = Math.floor(100000000 / price);
+
+      document.getElementById('btcPrice').textContent = `BTC/GBP: £${price.toLocaleString()}`;
+      document.getElementById('satsValue').textContent = `Sats = ${sats.toLocaleString()}`;
+      document.getElementById('mainSats').textContent = sats.toLocaleString();
+    } catch (err) {
+      console.error('Price fetch error:', err);
     }
+  }
 
-    fetchSatsPerPound();
-    setInterval(fetchSatsPerPound, 60000); // Refresh every 60 seconds
-  </script>
+  async function drawSatsChart() {
+    const res = await fetch('https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=gbp&days=30');
+    const data = await res.json();
+
+    const labels = [];
+    const satsData = [];
+
+    data.prices.forEach(([timestamp, price]) => {
+      const date = new Date(timestamp).toLocaleDateString();
+      const sats = 100000000 / price;
+      labels.push(date);
+      satsData.push(sats.toFixed(0));
+    });
+
+    new Chart(document.getElementById('satsChart'), {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'Sats per £',
+          data: satsData,
+          borderColor: '#F7931A',
+          backgroundColor: 'rgba(247,147,26,0.1)',
+          fill: true,
+          tension: 0.4
+        }]
+      },
+      options: {
+        scales: {
+          y: { beginAtZero: false }
+        }
+      }
+    });
+  }
+
+  async function drawBTCLogChart() {
+    const res = await fetch('https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=gbp&days=max');
+    const data = await res.json();
+
+    const labels = [];
+    const prices = [];
+
+    data.prices.forEach(([timestamp, price]) => {
+      const date = new Date(timestamp).toLocaleDateString();
+      labels.push(date);
+      prices.push(price);
+    });
+
+    new Chart(document.getElementById('btcLogChart'), {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'BTC Price (GBP)',
+          data: prices,
+          borderColor: '#2c3e50',
+          backgroundColor: 'rgba(44,62,80,0.1)',
+          fill: true,
+          tension: 0.3
+        }]
+      },
+      options: {
+        scales: {
+          y: {
+            type: 'logarithmic',
+            beginAtZero: false,
+            ticks: {
+              callback: function(value) {
+                return '£' + value.toLocaleString();
+              }
+            }
+          }
+        }
+      }
+    });
+  }
+
+  updateLiveStats();
+  drawSatsChart();
+  drawBTCLogChart();
+  setInterval(updateLiveStats, 60000);
+</script>
+
 </body>
 </html>
